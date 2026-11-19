@@ -196,7 +196,13 @@ export function TimetableApp() {
         </p>
 
         {!data ? <div className="loading">Chargement des emplois du temps…</div> : null}
-        {error ? <div className="error-banner">{error}</div> : null}
+        {error ? (
+          <div className={data?.source === "sample" ? "empty-state" : "error-banner"}>
+            {data?.source === "sample"
+              ? "SharePoint n’est pas encore connecté — aperçu avec données d’exemple. Ajoutez un lien de partage public ou les identifiants Microsoft Graph pour le live."
+              : error}
+          </div>
+        ) : null}
 
         {data ? (
           <>
