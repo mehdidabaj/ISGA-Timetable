@@ -230,6 +230,46 @@ select {
   transform: none;
 }
 
+.btn.secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.import-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px dashed var(--leaf);
+  background: rgba(47, 158, 103, 0.06);
+}
+
+.import-box h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.import-box p {
+  margin: 0 0 0.85rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.import-actions input[type="file"] {
+  max-width: 100%;
+}
+
 .meta-row {
   display: flex;
   flex-wrap: wrap;

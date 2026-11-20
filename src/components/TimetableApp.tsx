@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ScheduleSlot, TimetablePayload } from "@/lib/types";
 
 const REFRESH_MS = 30_000;
@@ -39,49 +39,50 @@ function currentWeekKey(slots: ScheduleSlot[]): string | null {
   const weeks = [...new Set(slots.map((s) => s.week))].sort(
     (a, b) => weekNumber(a) - weekNumber(b),
   );
-  // Prefer the latest week that has a parseable date around "now".
   const now = Date.now();
   let best: { week: string; distance: number } | null = null;
   for (const week of weeks) {
     const sample = slots.find((s) => s.week === week && s.weekDate.includes("/"));
     if (!sample) continue;
     const datePart = sample.weekDate.split("-").slice(1).join("-");
-    const parsed = Date.parse(datePart.replace(/(\d+)\/(\w+)\/(\d+)/, (_, d, mon, y) => {
-      const months: Record<string, string> = {
-        jan: "01",
-        january: "01",
-        fev: "02",
-        feb: "02",
-        february: "02",
-        mar: "03",
-        march: "03",
-        avr: "04",
-        apr: "04",
-        april: "04",
-        mai: "05",
-        may: "05",
-        jun: "06",
-        june: "06",
-        jul: "07",
-        july: "07",
-        aou: "08",
-        aug: "08",
-        august: "08",
-        sep: "09",
-        sept: "09",
-        september: "09",
-        oct: "10",
-        october: "10",
-        nov: "11",
-        november: "11",
-        dec: "12",
-        december: "12",
-      };
-      const key = String(mon).slice(0, 3).toLowerCase();
-      const mm = months[key] || months[String(mon).toLowerCase()] || "01";
-      const year = String(y).length === 2 ? `20${y}` : y;
-      return `${year}-${mm}-${String(d).padStart(2, "0")}T12:00:00Z`;
-    }));
+    const parsed = Date.parse(
+      datePart.replace(/(\d+)\/(\w+)\/(\d+)/, (_, d, mon, y) => {
+        const months: Record<string, string> = {
+          jan: "01",
+          january: "01",
+          fev: "02",
+          feb: "02",
+          february: "02",
+          mar: "03",
+          march: "03",
+          avr: "04",
+          apr: "04",
+          april: "04",
+          mai: "05",
+          may: "05",
+          jun: "06",
+          june: "06",
+          jul: "07",
+          july: "07",
+          aou: "08",
+          aug: "08",
+          august: "08",
+          sep: "09",
+          sept: "09",
+          september: "09",
+          oct: "10",
+          october: "10",
+          nov: "11",
+          november: "11",
+          dec: "12",
+          december: "12",
+        };
+        const key = String(mon).slice(0, 3).toLowerCase();
+        const mm = months[key] || months[String(mon).toLowerCase()] || "01";
+        const year = String(y).length === 2 ? `20${y}` : y;
+        return `${year}-${mm}-${String(d).padStart(2, "0")}T12:00:00Z`;
+      }),
+    );
     if (Number.isNaN(parsed)) continue;
     const distance = Math.abs(parsed - now);
     if (!best || distance < best.distance) best = { week, distance };
@@ -94,7 +95,9 @@ export function TimetableApp() {
   const [error, setError] = useState<string | null>(null);
   const [classe, setClasse] = useState("");
   const [week, setWeek] = useState("current");
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   async function load(force = false) {
     try {
@@ -105,9 +108,34 @@ export function TimetableApp() {
       const json = (await res.json()) as TimetablePayload;
       setData(json);
       setError(json.error || null);
-      setClasse((prev) => prev || json.classes[0] || "");
+      setClasse((prev) =>
+        prev && json.classes.includes(prev) ? prev : json.classes[0] || "",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement");
+    }
+  }
+
+  async function onUpload(file: File | null) {
+    if (!file) return;
+    setUploadMsg(null);
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const json = (await res.json()) as TimetablePayload & { error?: string };
+      if (!res.ok) throw new Error(json.error || `Import ${res.status}`);
+      setData(json);
+      setError(null);
+      setClasse(json.classes[0] || "");
+      setWeek("current");
+      setUploadMsg(
+        `Import OK — ${json.classes.length} filière(s), ${Object.values(json.schedules).reduce((n, s) => n + s.length, 0)} séance(s).`,
+      );
+    } catch (err) {
+      setUploadMsg(err instanceof Error ? err.message : "Import impossible");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -123,10 +151,9 @@ export function TimetableApp() {
   }, [data, classe]);
 
   const weeks = useMemo(() => {
-    const list = [...new Set(slots.map((s) => s.week))].sort(
+    return [...new Set(slots.map((s) => s.week))].sort(
       (a, b) => weekNumber(a) - weekNumber(b),
     );
-    return list;
   }, [slots]);
 
   const activeWeek = useMemo(() => {
@@ -138,10 +165,10 @@ export function TimetableApp() {
   const filtered = useMemo(() => {
     const list = activeWeek ? slots.filter((s) => s.week === activeWeek) : slots;
     return [...list].sort((a, b) => {
-      const dayDiff =
+      return (
         DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) ||
-        a.startTime.localeCompare(b.startTime);
-      return dayDiff;
+        a.startTime.localeCompare(b.startTime)
+      );
     });
   }, [slots, activeWeek]);
 
@@ -159,19 +186,26 @@ export function TimetableApp() {
     }));
   }, [filtered]);
 
+  const statusLabel =
+    data?.source === "sharepoint"
+      ? "Synchro temps réel"
+      : data?.source === "upload"
+        ? "Excel importé"
+        : "Mode aperçu";
+
   return (
     <div className="app-shell">
       <header className="hero">
         <p className={`status-pill ${data?.live ? "live" : ""}`}>
           <span className="dot" />
-          {data?.live ? "Synchro temps réel" : "Mode aperçu"}
+          {statusLabel}
         </p>
         <h1 className="brand">
           ISGA <span>Emplois du temps</span>
         </h1>
         <p className="hero-copy">
-          Consultez les plannings des filières, mis à jour automatiquement depuis le classeur
-          SharePoint ISGA.
+          Consultez les plannings des filières. Aucune clé Azure n’est requise : importez
+          simplement le fichier Excel téléchargé depuis SharePoint.
         </p>
         <div className="hero-actions">
           <button
@@ -181,6 +215,13 @@ export function TimetableApp() {
             onClick={() => startTransition(() => void load(true))}
           >
             {pending ? "Actualisation…" : "Actualiser maintenant"}
+          </button>
+          <button
+            className="btn secondary"
+            type="button"
+            onClick={() => fileRef.current?.click()}
+          >
+            Importer le Excel
           </button>
           <span className="status-pill">
             Dernière synchro : {formatRelative(data?.refreshedAt)}
@@ -196,13 +237,40 @@ export function TimetableApp() {
         </p>
 
         {!data ? <div className="loading">Chargement des emplois du temps…</div> : null}
-        {error ? (
-          <div className={data?.source === "sample" ? "empty-state" : "error-banner"}>
-            {data?.source === "sample"
-              ? "SharePoint n’est pas encore connecté — aperçu avec données d’exemple. Ajoutez un lien de partage public ou les identifiants Microsoft Graph pour le live."
-              : error}
+
+        {data?.source === "sample" ? (
+          <div className="import-box">
+            <h3>Importer le planning (sans clés)</h3>
+            <p>
+              1. Ouvrez le fichier SharePoint ISGA dans votre navigateur · 2. Téléchargez une
+              copie (.xlsx) · 3. Importez-la ici. Pour une synchro auto plus tard, un simple
+              lien de partage public suffit (pas de clés Microsoft).
+            </p>
+            <div className="import-actions">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={(e) => void onUpload(e.target.files?.[0] || null)}
+              />
+            </div>
+            {uploadMsg ? <p>{uploadMsg}</p> : null}
           </div>
-        ) : null}
+        ) : (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              hidden
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={(e) => void onUpload(e.target.files?.[0] || null)}
+            />
+            {uploadMsg ? <div className="empty-state">{uploadMsg}</div> : null}
+            {error && data?.source === "sharepoint" ? (
+              <div className="error-banner">{error}</div>
+            ) : null}
+          </>
+        )}
 
         {data ? (
           <>
@@ -280,9 +348,7 @@ export function TimetableApp() {
             ) : null}
 
             {byDay.length === 0 ? (
-              <div className="empty-state">
-                Aucun cours trouvé pour cette sélection.
-              </div>
+              <div className="empty-state">Aucun cours trouvé pour cette sélection.</div>
             ) : (
               <div className="schedule">
                 {byDay.map((group) => (
@@ -316,7 +382,7 @@ export function TimetableApp() {
       </section>
 
       <footer className="footer">
-        Source SharePoint ISGA · synchro automatique côté serveur (cache 30 s) · année 2025-2026
+        ISGA · import Excel ou lien SharePoint public · année 2025-2026
       </footer>
     </div>
   );

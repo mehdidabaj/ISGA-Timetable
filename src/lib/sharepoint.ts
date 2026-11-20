@@ -113,6 +113,6 @@ export async function fetchSharePointExcel(): Promise<{
   if (anonymous) return { buffer: anonymous, mode: "anonymous" };
 
   throw new Error(
-    "Impossible d'accéder au fichier SharePoint. Ajoutez un lien de partage public (Anyone with the link) ou les identifiants Microsoft Graph.",
+    "Accès SharePoint automatique indisponible. Téléchargez le Excel depuis SharePoint puis importez-le dans l’app (aucune clé Azure requise).",
   );
 }

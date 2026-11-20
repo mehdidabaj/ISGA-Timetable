@@ -15,10 +15,12 @@ export type ScheduleSlot = {
   rawText: string;
 };
 
+export type TimetableSource = "sharepoint" | "upload" | "sample";
+
 export type TimetablePayload = {
   generatedAt: string;
   refreshedAt: string;
-  source: "sharepoint" | "sample";
+  source: TimetableSource;
   sourceLabel: string;
   live: boolean;
   classes: string[];

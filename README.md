@@ -1,28 +1,22 @@
 # ISGA Timetable
 
-Application web pour consulter les emplois du temps des filières ISGA, synchronisés depuis le classeur Excel SharePoint.
+Application web pour consulter les emplois du temps des filières ISGA.
 
-## Fonctionnement
+## Sans aucune clé (recommandé)
 
-- L’API `/api/timetable` lit le fichier Excel SharePoint (lien de partage ou Microsoft Graph).
-- Le résultat est mis en cache **30 secondes** pour une synchro quasi temps réel.
-- L’interface rafraîchit automatiquement toutes les 30 secondes et permet de filtrer par filière / semaine.
-- Sans accès SharePoint configuré, l’app affiche des **données d’exemple** pour prévisualiser l’UI.
+1. Ouvrez le classeur SharePoint ISGA dans le navigateur.
+2. Téléchargez une copie (`.xlsx`).
+3. Dans l’app, cliquez **Importer le Excel**.
 
-## Configuration SharePoint
+L’app parse les feuilles (filières) et affiche les séances. Re-importez le fichier quand le planning change.
 
-Deux options (recommandé : les deux) :
+## Synchro automatique (optionnel)
 
-1. **Lien de partage** `SHAREPOINT_SHARE_URL`  
-   Dans SharePoint/OneDrive : *Partager → Toute personne disposant du lien peut afficher*.
+Aucune clé Azure / Client Secret n’est nécessaire.
 
-2. **Microsoft Graph (app Azure AD)**  
-   - `MS_TENANT_ID`
-   - `MS_CLIENT_ID`
-   - `MS_CLIENT_SECRET`  
-   Permissions applicatives : `Files.Read.All` ou `Sites.Read.All` (admin consent).
+Demandez au propriétaire du fichier un lien de partage **« Toute personne disposant du lien peut afficher »**, puis renseignez `SHAREPOINT_SHARE_URL`. L’API `/api/timetable` le relira alors toutes les ~30 secondes.
 
-Le lien source par défaut pointe vers le classeur ISGA fourni.
+Les variables `MS_TENANT_ID` / `MS_CLIENT_ID` / `MS_CLIENT_SECRET` sont **optionnelles** (Microsoft Graph) et inutiles dans la plupart des cas.
 
 ## Développement
 
@@ -32,9 +26,3 @@ npm run dev
 ```
 
 Ouvrir [http://127.0.0.1:3000](http://127.0.0.1:3000).
-
-## Scripts
-
-- `npm run dev` — serveur de développement
-- `npm run build` — build production
-- `npm start` — serveur production
